@@ -1,0 +1,188 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+:root {
+  --paper-bg: #F9F7F2;
+  --academic-ink: #1A1A1A;
+  --border-color: #D1CFCA;
+  --accent-gold: #C5A059;
+  --quran-bg: #F4F6F4;
+  --opinion-bg: #F0F4F8;
+  --summary-bg: #FDF6E3;
+}
+
+body {
+  background-color: #E5E2DB;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.app-container {
+  height: 90vh;
+  max-height: 800px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.header {
+  height: 60px;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  background: white;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.version-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid var(--academic-ink);
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.main-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  overflow: hidden;
+}
+@media (min-width: 1024px) {
+  .main-grid {
+    grid-template-columns: 450px 1fr;
+  }
+}
+.input-pane {
+  background: #FDFDFD;
+  border-inline-end: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.output-pane {
+  background: var(--paper-bg);
+  padding: 40px;
+  overflow-y: auto;
+  direction: rtl;
+}
+.pane-title {
+  padding: 12px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #888;
+  border-bottom: 1px solid #EEE;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.editor-content {
+  flex: 1;
+  padding: 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.6;
+  resize: none;
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+}
+.btn-compile {
+  background: var(--academic-ink);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+.btn-compile:hover {
+  opacity: 0.9;
+}
+.btn-compile:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Theme Specific Styles */
+.quran-verse {
+  background: var(--quran-bg);
+  border-right: 4px solid #4A7C44;
+  padding: 20px;
+  margin: 20px 0;
+  font-family: 'Georgia', serif;
+  font-size: 20px;
+  text-align: center;
+  border-radius: 4px;
+}
+.verse-ref {
+  display: block;
+  font-size: 12px;
+  color: #4A7C44;
+  margin-top: 10px;
+  text-decoration: none;
+  font-weight: bold;
+}
+.opinion-box {
+  background: var(--opinion-bg);
+  border-left: 4px solid #3A6D8C;
+  padding: 18px;
+  margin: 20px 0;
+  border-radius: 2px;
+  line-height: 1.6;
+}
+.post-summary {
+  background: var(--summary-bg);
+  border: 2px dashed #D4A373;
+  padding: 20px;
+  margin: 24px 0;
+  border-radius: 12px;
+}
+.image-placeholder {
+  background: #EEE;
+  border: 1px dashed #CCC;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 15px 0;
+  color: #999;
+  font-size: 12px;
+}
+
+/* Base element styles matching the theme for the output */
+.academic-output h2 {
+  font-family: 'Georgia', serif;
+  font-size: 28px;
+  margin-bottom: 15px;
+  color: var(--academic-ink);
+}
+.academic-output p {
+  margin-bottom: 15px;
+  color: #333;
+  font-size: 16px;
+  line-height: 1.7;
+}
+.academic-output code {
+  background: #F0F0F0;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
