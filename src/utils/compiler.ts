@@ -8,40 +8,43 @@ export function compileTextToHtml(text: string): string {
   // أي سطر كامل ينتهي بقوسين داخلهما (رقم:رقم) نعتبره آية
   const quranLineRegex = /^(.*?)\s*\(\s*(\d+)\s*:\s*(\d+(?:\s*-\s*\d+)?)\s*\)$/;
 
+  let inQA = false;
+  let inList = false;
+  let inTable = false;
+  let tableHasHeader = false;
+
   for (let i = 0; i < lines.length; i++) {
     let t = lines[i].trim();
     if (!t) continue;
 
-    // 1. Headings (العناوين)
-    if (t.startsWith('[Heading:') && t.endsWith(']')) {
-      let hText = t.replace(/^\[Heading:\s*/, '').replace(/\]$/, '');
-      htmlChunks.push(`<h2>${hText}</h2>`);
-      continue;
-    }
-    
-    // 2. Opinion Boxes (صناديق الرأي)
-    const opinionMatch = t.match(/^(رأينا:|افتراء من عند أنفسنا:|تخيلات من عند أنفسنا:|موقفنا:|رأينا المفترى:)(.*)/);
-    if (opinionMatch) {
-      htmlChunks.push(`<div class="opinion-box"><strong>${opinionMatch[1]}</strong>${opinionMatch[2]}</div>`);
-      continue;
+    const isVerse = t.match(quranLineRegex);
+
+    // إنهاء قسم الجواب (QA) في حال ظهور عناصر رئيسية جديدة
+    if (inQA && (t.startsWith("باب ") || t.includes(" – الجزء ") || t.startsWith("السؤال:") || t.startsWith("نتيجة مفتراة") || t.startsWith("افتراء:") || t.startsWith("نتيجة:") || isVerse)) {
+      htmlChunks.push(`  </div>\n</div>`);
+      inQA = false;
     }
 
-    // 3. Summaries (الخلاصة)
-    const summaryMatch = t.match(/^(خلاصة|خلاصة القول|نتائج مفتراة|الخلاصة):?(.*)/);
-    if (summaryMatch) {
-      htmlChunks.push(`<div class="post-summary"><strong>الخلاصة:</strong>${summaryMatch[2]}</div>`);
+    // بناء الأسئلة (QA Block)
+    if (t.startsWith("السؤال:")) {
+      let processedText = t.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+      htmlChunks.push(`<div class="qa-block">\n  <div class="qa-question">${processedText}</div>\n  <div class="qa-answer">`);
+      inQA = true;
       continue;
     }
 
-    // 4. Images (الصور)
-    if (t.includes('[Image]') || t.includes('[صورة]')) {
-       htmlChunks.push(`<div class="image-placeholder">مخطط توضيحي أو صورة</div>`);
-       continue;
+    let indent = inQA ? "    " : "";
+
+    // العناوين (TOC Support & Markdown Headings)
+    if (t.startsWith("باب ") || t.includes(" – الجزء ") || t.match(/^#+\s/)) {
+      let hText = t.replace(/^#+\s*/, '');
+      htmlChunks.push(`${indent}<h2>${hText}</h2>`);
+      continue;
     }
 
-    // 5. Quranic Verses (اكتشاف سريع ومباشر للآيات في سطر منفصل)
-    const verseMatch = t.match(quranLineRegex);
-    if (verseMatch) {
+    // 5. Quranic Verses
+    if (isVerse) {
+      const verseMatch = t.match(quranLineRegex)!;
       const lastSurahNum = parseInt(verseMatch[2], 10);
       const lastAyahNumStr = verseMatch[3].trim();
       
@@ -50,7 +53,6 @@ export function compileTextToHtml(text: string): string {
       const inlineRefs: {surah: number, ayah: string}[] = [];
       const inlineRegex = /\(\s*(\d+)\s*:\s*(\d+(?:\s*-\s*\d+)?)\s*\)/g;
       
-      // Find all inline references to determine the range
       let match;
       while ((match = inlineRegex.exec(t)) !== null) {
         inlineRefs.push({ surah: parseInt(match[1], 10), ayah: match[2].trim() });
@@ -58,9 +60,7 @@ export function compileTextToHtml(text: string): string {
 
       let finalAyahs = lastAyahNumStr;
       
-      // لو كان فيه آيات متعددة
       if (inlineRefs.length > 0) {
-        // نأخذ أول آية لتشكيل النطاق (Range)
         const firstRef = inlineRefs[0];
         if (firstRef.surah === lastSurahNum) {
           const firstAyahBase = firstRef.ayah.split('-')[0].trim();
@@ -72,21 +72,109 @@ export function compileTextToHtml(text: string): string {
         }
       }
       
-      // نستبدل جميع الأرقام في السطر الأصلي ليظهر كل الآيات بروابطها التي تشير للنطاق الكامل
       let processedVerseText = t.replace(inlineRegex, (m, sNum, aNum) => {
-        return `<a href="https://quran.com/${sNum}/${finalAyahs}" class="inline-verse-ref" style="text-decoration: none; opacity: 0.8;" target="_blank" rel="noopener noreferrer">(${aNum.trim()})</a>`;
+        return `<a href="https://quran.com/${sNum}/${finalAyahs}" class="inline-verse-ref" target="_blank" rel="noopener noreferrer">(${aNum.trim()})</a>`;
       });
       
       const refHtml = `<a class="verse-ref" href="https://quran.com/${lastSurahNum}/${finalAyahs}" target="_blank" rel="noopener noreferrer">[سورة ${surahName}: ${finalAyahs}]</a>`;
       
-      htmlChunks.push(`<div class="quran-verse" style="color: var(--primary-color);">\n  ${processedVerseText}\n  ${refHtml}\n</div>`);
+      htmlChunks.push(`${indent}<div class="quran-verse">\n${indent}  ${processedVerseText}\n${indent}  ${refHtml}\n${indent}</div>`);
       continue;
     }
 
-    // إضافة الكلمات المميزة كـ Code Tags للفقرات العادية
+    // الاستشهادات والمراجع (Citation Box)
+    const citationMatch = t.match(/^(?:استشهاد|اقتباس|مرجع|المصدر)\s*[:\-]\s*(.*)/);
+    if (citationMatch) {
+      let content = citationMatch[1];
+      let source = "اقتباس";
+      const sourceMatch = content.match(/^(?:\[(.*?)\]|\((.*?)\)|"([^"]+)")\s*(.*)/);
+      if (sourceMatch) {
+         source = sourceMatch[1] || sourceMatch[2] || sourceMatch[3];
+         content = sourceMatch[4];
+      }
+      let processedText = content.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+      htmlChunks.push(`${indent}<div class="citation-box">\n${indent}  <div class="citation-header"><span>${source}</span></div>\n${indent}  <div class="citation-text">${processedText}</div>\n${indent}</div>`);
+      continue;
+    }
+
+    // الخلاصة (Post Summary)
+    if (t.startsWith("نتيجة مفتراة") || t.startsWith("افتراء:") || t.startsWith("نتيجة:") || t.startsWith("الخلاصة:") || t.startsWith("خلاصة:")) {
+      let processedText = t.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+      processedText = processedText.replace(/^(.*?)(:)/, '<strong>$1$2</strong>');
+      htmlChunks.push(`${indent}<div class="post-summary">\n${indent}  ${processedText}\n${indent}</div>`);
+      continue;
+    }
+
+    // صندوق الرأي (Opinion Box)
+    if (t.startsWith("رأينا المفترى:") || t.startsWith("جواب مفترى:") || t.startsWith("تخيلات") || t.startsWith("رأينا:") || t.startsWith("ملاحظة:")) {
+      let processedText = t.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+      processedText = processedText.replace(/^(.*?)(:)/, '<strong>$1$2</strong>');
+      htmlChunks.push(`${indent}<div class="opinion-box">\n${indent}  ${processedText}\n${indent}</div>`);
+      continue;
+    }
+
+    // الجداول (Tables)
+    if (t.startsWith("|") && t.endsWith("|")) {
+      if (!inTable) {
+        htmlChunks.push(`${indent}<table>`);
+        inTable = true;
+      }
+      
+      if (t.match(/^\|(?:-+|:-+:|:-+|-+:)(?:\|(?:-+|:-+:|:-+|-+:))*\|$/)) {
+         continue; 
+      }
+
+      let cells = t.split("|").slice(1, -1).map(c => c.trim());
+      let rowHtml = `${indent}  <tr>\n`;
+      let cellTag = tableHasHeader ? "td" : "th";
+      for (let cell of cells) {
+         let processedCell = cell.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+         rowHtml += `${indent}    <${cellTag}>${processedCell}</${cellTag}>\n`;
+      }
+      rowHtml += `${indent}  </tr>`;
+      htmlChunks.push(rowHtml);
+      tableHasHeader = true; 
+      continue;
+    } else if (inTable) {
+      htmlChunks.push(`${indent}</table>`);
+      inTable = false;
+      tableHasHeader = false;
+    }
+
+    // القوائم (Lists)
+    if (t.startsWith("* ")) {
+      if (!inList) { htmlChunks.push(`${indent}<ul>`); inList = true; }
+      let processedText = t.substring(2).trim().replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+      htmlChunks.push(`${indent}  <li>${processedText}</li>`);
+      
+      // التمرير للسطر التالي للتحقق من انتهاء القائمة متجاهلاً الأسطر الفارغة
+      let nextLineIsList = false;
+      for (let j = i + 1; j < lines.length; j++) {
+        let nextT = lines[j].trim();
+        if (nextT) {
+          nextLineIsList = nextT.startsWith("* ");
+          break;
+        }
+      }
+      
+      if (!nextLineIsList) {
+        htmlChunks.push(`${indent}</ul>`);
+        inList = false;
+      }
+      continue;
+    }
+
+    // الفقرات العادية (Paragraphs)
     let processedText = t.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
-    
-    htmlChunks.push(`<p>${processedText}</p>`);
+    htmlChunks.push(`${indent}<p>${processedText}</p>`);
+  }
+
+  // إغلاق أي وسوم مفتوحة في نهاية النص
+  if (inTable) {
+    htmlChunks.push(`</table>`);
+  }
+  if (inQA) {
+    htmlChunks.push(`  </div>\n</div>`);
   }
 
   return htmlChunks.join('\n\n');
