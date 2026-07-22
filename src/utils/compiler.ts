@@ -53,7 +53,7 @@ export function compileTextToHtml(text: string): string {
       
       let processedVerseText = verseText.replace(inlineRegex, (match, sNum, aNum) => {
         inlineRefs.push({ surah: parseInt(sNum, 10), ayah: aNum.trim() });
-        return `<a href="https://quran.com/${sNum}/${aNum.split('-')[0].trim()}" class="inline-verse-ref" style="text-decoration: none; opacity: 0.8;" target="_blank" rel="noopener noreferrer">${match}</a>`;
+        return `<a href="https://quran.com/${sNum}/${aNum.split('-')[0].trim()}" class="inline-verse-ref" style="text-decoration: none; opacity: 0.8;" target="_blank" rel="noopener noreferrer">(${aNum.trim()})</a>`;
       });
 
       let finalAyahs = lastAyahNumStr;
@@ -66,8 +66,11 @@ export function compileTextToHtml(text: string): string {
         if (firstRef.surah === lastSurahNum) {
           const firstAyahBase = firstRef.ayah.split('-')[0].trim();
           const lastAyahEnd = lastAyahNumStr.includes('-') ? lastAyahNumStr.split('-')[1].trim() : lastAyahNumStr;
-          finalAyahs = `${firstAyahBase}-${lastAyahEnd}`;
-          linkAyahs = `${firstAyahBase}-${lastAyahEnd}`;
+          
+          if (firstAyahBase !== lastAyahEnd) {
+            finalAyahs = `${firstAyahBase}-${lastAyahEnd}`;
+            linkAyahs = `${firstAyahBase}-${lastAyahEnd}`;
+          }
         }
       }
       
