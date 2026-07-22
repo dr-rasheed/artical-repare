@@ -43,15 +43,37 @@ export function compileTextToHtml(text: string): string {
     const verseMatch = t.match(quranLineRegex);
     if (verseMatch) {
       const verseText = verseMatch[1].trim();
-      const surahNum = parseInt(verseMatch[2], 10);
-      const ayahNumStr = verseMatch[3].trim();
+      const lastSurahNum = parseInt(verseMatch[2], 10);
+      const lastAyahNumStr = verseMatch[3].trim();
       
-      const surahName = surahNum <= surahs.length && surahNum > 0 ? surahs[surahNum - 1] : surahNum.toString();
-      const baseAyahNum = ayahNumStr.split('-')[0].trim();
+      const surahName = lastSurahNum <= surahs.length && lastSurahNum > 0 ? surahs[lastSurahNum - 1] : lastSurahNum.toString();
       
-      const refHtml = `<a class="verse-ref" href="https://quran.com/${surahNum}/${baseAyahNum}" target="_blank" rel="noopener noreferrer">[سورة ${surahName}: ${ayahNumStr}]</a>`;
+      const inlineRefs: {surah: number, ayah: string}[] = [];
+      const inlineRegex = /\(\s*(\d+)\s*:\s*(\d+(?:\s*-\s*\d+)?)\s*\)/g;
       
-      htmlChunks.push(`<div class="quran-verse" style="color: var(--primary-color);">\n  ${verseText}\n  ${refHtml}\n</div>`);
+      let processedVerseText = verseText.replace(inlineRegex, (match, sNum, aNum) => {
+        inlineRefs.push({ surah: parseInt(sNum, 10), ayah: aNum.trim() });
+        return `<a href="https://quran.com/${sNum}/${aNum.split('-')[0].trim()}" class="inline-verse-ref" style="text-decoration: none; opacity: 0.8;" target="_blank" rel="noopener noreferrer">${match}</a>`;
+      });
+
+      let finalAyahs = lastAyahNumStr;
+      let linkAyahs = lastAyahNumStr;
+      
+      // لو كان فيه آيات مدمجة بنفس السطر
+      if (inlineRefs.length > 0) {
+        // نأخذ أول آية لتشكيل النطاق (Range)
+        const firstRef = inlineRefs[0];
+        if (firstRef.surah === lastSurahNum) {
+          const firstAyahBase = firstRef.ayah.split('-')[0].trim();
+          const lastAyahEnd = lastAyahNumStr.includes('-') ? lastAyahNumStr.split('-')[1].trim() : lastAyahNumStr;
+          finalAyahs = `${firstAyahBase}-${lastAyahEnd}`;
+          linkAyahs = `${firstAyahBase}-${lastAyahEnd}`;
+        }
+      }
+      
+      const refHtml = `<a class="verse-ref" href="https://quran.com/${lastSurahNum}/${linkAyahs}" target="_blank" rel="noopener noreferrer">[سورة ${surahName}: ${finalAyahs}]</a>`;
+      
+      htmlChunks.push(`<div class="quran-verse" style="color: var(--primary-color);">\n  ${processedVerseText}\n  ${refHtml}\n</div>`);
       continue;
     }
 
