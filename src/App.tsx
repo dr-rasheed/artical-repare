@@ -26,22 +26,17 @@ export default function App() {
     setOutputHtml('');
 
     try {
-      const res = await fetch('/api/compile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: inputText }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'فشلت الترجمة');
-      }
-
-      setOutputHtml(data.html);
+      // Simulate slight delay for UX
+      await new Promise(r => setTimeout(r, 400));
+      
+      const { compileTextToHtml } = await import('./utils/compiler');
+      const resultHtml = compileTextToHtml(inputText);
+      
+      setOutputHtml(resultHtml);
       setActiveTab('code');
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      setError('حدث خطأ أثناء المعالجة.');
     } finally {
       setIsLoading(false);
     }
