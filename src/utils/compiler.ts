@@ -4,9 +4,9 @@ export function compileTextToHtml(text: string): string {
   let htmlChunks: string[] = [];
   const lines = text.split('\n');
 
-  // بناء تعبير قياسي قوي للبحث عن الآيات القرآنية في أي مكان بالنص
-  const surahsPattern = surahs.join('|');
-  const quranRegex = new RegExp('(["«”“][\\s\\S]+?["»”])\\s*(?:\\(|\\[|-)?\\s*(?:سورة\\s+)?(' + surahsPattern + ')\\s*[:،-]?\\s*(\\d+(?:\\s*-\\s*\\d+)?)\\s*(?:\\)|\\])?', 'g');
+  // النمط الجديد والسريع لاكتشاف الآيات بناءً على طلب المستخدم
+  // أي سطر كامل ينتهي بقوسين داخلهما (رقم:رقم) نعتبره آية
+  const quranLineRegex = /^(.*?)\s*\(\s*(\d+)\s*:\s*(\d+(?:\s*-\s*\d+)?)\s*\)$/;
 
   for (let i = 0; i < lines.length; i++) {
     let t = lines[i].trim();
@@ -39,32 +39,26 @@ export function compileTextToHtml(text: string): string {
        continue;
     }
 
-    // 5. Quranic Verses & Paragraphs (معالجة الآيات والفقرات العادية)
-    let containsVerse = false;
-    let processedText = t.replace(quranRegex, (match, verseText, surahName, ayahNum) => {
-      containsVerse = true;
+    // 5. Quranic Verses (اكتشاف سريع ومباشر للآيات في سطر منفصل)
+    const verseMatch = t.match(quranLineRegex);
+    if (verseMatch) {
+      const verseText = verseMatch[1].trim();
+      const surahNum = parseInt(verseMatch[2], 10);
+      const ayahNumStr = verseMatch[3].trim();
       
-      let surahNum = surahs.indexOf(surahName.trim()) + 1;
+      const surahName = surahNum <= surahs.length && surahNum > 0 ? surahs[surahNum - 1] : surahNum.toString();
+      const baseAyahNum = ayahNumStr.split('-')[0].trim();
       
-      let refHtml = "";
-      if (surahNum > 0) {
-        const baseAyahNum = ayahNum.split('-')[0].trim();
-        refHtml = `<a class="verse-ref" href="https://quran.com/${surahNum}/${baseAyahNum}" target="_blank">[سورة ${surahName.trim()}: ${ayahNum.trim()}]</a>`;
-      } else {
-        refHtml = `<span class="verse-ref">[سورة ${surahName.trim()}: ${ayahNum.trim()}]</span>`;
-      }
-
-      return `<div class="quran-verse">\n  ${verseText}\n  ${refHtml}\n</div>`;
-    });
-
-    // إضافة الكلمات المميزة كـ Code Tags
-    processedText = processedText.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
-    
-    if (containsVerse && processedText.startsWith('<div class="quran-verse">') && processedText.endsWith('</div>')) {
-      htmlChunks.push(processedText);
-    } else {
-      htmlChunks.push(`<p>${processedText}</p>`);
+      const refHtml = `<a class="verse-ref" href="https://quran.com/${surahNum}/${baseAyahNum}" target="_blank" rel="noopener noreferrer">[سورة ${surahName}: ${ayahNumStr}]</a>`;
+      
+      htmlChunks.push(`<div class="quran-verse" style="color: var(--primary-color);">\n  ${verseText}\n  ${refHtml}\n</div>`);
+      continue;
     }
+
+    // إضافة الكلمات المميزة كـ Code Tags للفقرات العادية
+    let processedText = t.replace(/"([^"\s]{1,20})"/g, '<code>"$1"</code>');
+    
+    htmlChunks.push(`<p>${processedText}</p>`);
   }
 
   return htmlChunks.join('\n\n');
