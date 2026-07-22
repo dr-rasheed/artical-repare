@@ -42,7 +42,6 @@ export function compileTextToHtml(text: string): string {
     // 5. Quranic Verses (اكتشاف سريع ومباشر للآيات في سطر منفصل)
     const verseMatch = t.match(quranLineRegex);
     if (verseMatch) {
-      const verseText = verseMatch[1].trim();
       const lastSurahNum = parseInt(verseMatch[2], 10);
       const lastAyahNumStr = verseMatch[3].trim();
       
@@ -51,15 +50,15 @@ export function compileTextToHtml(text: string): string {
       const inlineRefs: {surah: number, ayah: string}[] = [];
       const inlineRegex = /\(\s*(\d+)\s*:\s*(\d+(?:\s*-\s*\d+)?)\s*\)/g;
       
-      let processedVerseText = verseText.replace(inlineRegex, (match, sNum, aNum) => {
-        inlineRefs.push({ surah: parseInt(sNum, 10), ayah: aNum.trim() });
-        return `<a href="https://quran.com/${sNum}/${aNum.split('-')[0].trim()}" class="inline-verse-ref" style="text-decoration: none; opacity: 0.8;" target="_blank" rel="noopener noreferrer">(${aNum.trim()})</a>`;
-      });
+      // Find all inline references to determine the range
+      let match;
+      while ((match = inlineRegex.exec(t)) !== null) {
+        inlineRefs.push({ surah: parseInt(match[1], 10), ayah: match[2].trim() });
+      }
 
       let finalAyahs = lastAyahNumStr;
-      let linkAyahs = lastAyahNumStr;
       
-      // لو كان فيه آيات مدمجة بنفس السطر
+      // لو كان فيه آيات متعددة
       if (inlineRefs.length > 0) {
         // نأخذ أول آية لتشكيل النطاق (Range)
         const firstRef = inlineRefs[0];
@@ -69,12 +68,16 @@ export function compileTextToHtml(text: string): string {
           
           if (firstAyahBase !== lastAyahEnd) {
             finalAyahs = `${firstAyahBase}-${lastAyahEnd}`;
-            linkAyahs = `${firstAyahBase}-${lastAyahEnd}`;
           }
         }
       }
       
-      const refHtml = `<a class="verse-ref" href="https://quran.com/${lastSurahNum}/${linkAyahs}" target="_blank" rel="noopener noreferrer">[سورة ${surahName}: ${finalAyahs}]</a>`;
+      // نستبدل جميع الأرقام في السطر الأصلي ليظهر كل الآيات بروابطها التي تشير للنطاق الكامل
+      let processedVerseText = t.replace(inlineRegex, (m, sNum, aNum) => {
+        return `<a href="https://quran.com/${sNum}/${finalAyahs}" class="inline-verse-ref" style="text-decoration: none; opacity: 0.8;" target="_blank" rel="noopener noreferrer">(${aNum.trim()})</a>`;
+      });
+      
+      const refHtml = `<a class="verse-ref" href="https://quran.com/${lastSurahNum}/${finalAyahs}" target="_blank" rel="noopener noreferrer">[سورة ${surahName}: ${finalAyahs}]</a>`;
       
       htmlChunks.push(`<div class="quran-verse" style="color: var(--primary-color);">\n  ${processedVerseText}\n  ${refHtml}\n</div>`);
       continue;
